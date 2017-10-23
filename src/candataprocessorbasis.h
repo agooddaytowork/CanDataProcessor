@@ -70,7 +70,7 @@ private:
     quint32 currentGlobalID = 0;
     GlobalSignal autoGlobalSignalToCanBusWorker;
 
-    void initialize();
+    void initiate();
     void dispose();
     void setError(const Error & anErrorType, const QString & anErrorInfo);
 

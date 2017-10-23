@@ -2,6 +2,7 @@
 
 CanDataProcessorBasis::CanDataProcessorBasis(QObject *parent) : AbstractStateMachineBasis(parent)
 {
+    registerGlobalSignal;
     anIf(CanDataProcessorBasisDbgEn, anAck("CanDataProcessorBasis Constructed"));
 }
 
@@ -15,7 +16,7 @@ void CanDataProcessorBasis::uninitiatedCanDataProcessorOnEntry()
 {
     if (!isInitiated)
     {
-        initialize();
+        initiate();
     }
 }
 
@@ -27,10 +28,10 @@ void CanDataProcessorBasis::idleCanDataProcessorOnEntry()
         iamReady.Type = QVariant::fromValue(readyToWork);
         iamReady.Data = QVariant::fromValue(parent()->objectName());
         iamReady.TimeStamp = NOW2String;
-        iamReady.DstStrs.append(SmallCoordinatorObjName);
+        iamReady.DstStrs.append(GlobalSignalCoordinatorObjName);
         iamReady.SignalPriority = 200;
-        addAGlobalSignal(iamReady);
-        emit goToState2();
+        pushAGlobalSignalIntoPrioritizedBuffer(iamReady);
+        emit GlobalSignalExecutionRequested();
     }
 }
 
@@ -53,6 +54,19 @@ void CanDataProcessorBasis::runningCanDataProcessorOnEntry()
             case enableAutoSignaller:
             {
                 isAutoSignallerEnabled = true;
+                break;
+            }
+            default:
+                break;
+            }
+        }
+        else if (currentGlobalSignalTypeTypeName == QStringLiteral("CanDataProcessorBasis::Notification"))
+        {
+            switch (currentGlobalSignal.Type.toInt()) {
+            case readyToWork:
+            {
+                anIf(CanDataProcessorBasisDbgEn, anAck("readyToWork"));
+                emit Out(GlobalSignal(currentGlobalSignal));
                 break;
             }
             default:
@@ -103,11 +117,11 @@ void CanDataProcessorBasis::runningCanDataProcessorOnEntry()
     }
     if (prioritizedBuffer.isEmpty())
     {
-        emit goToState1();
+        emit goIdle();
     }
     else
     {
-        emit goToState2();
+        emit GlobalSignalExecutionRequested();
     }
 }
 
@@ -123,13 +137,17 @@ void CanDataProcessorBasis::errorCanDataProcessorOnEntry()
     errorGlobalSignal.Data = QVariant::fromValue(ErrorInfo);
     errorGlobalSignal.Priority = 200;
     errorGlobalSignal.SignalPriority = 200;
-    errorGlobalSignal.DstStrs.append(SmallCoordinatorObjName);
+    errorGlobalSignal.DstStrs.append(GlobalSignalCoordinatorObjName);
     emit Out(errorGlobalSignal);
 }
 
 void CanDataProcessorBasis::In(const GlobalSignal &aGlobalSignal)
 {
-    addAGlobalSignal(aGlobalSignal);
+    pushAGlobalSignalIntoPrioritizedBuffer(aGlobalSignal);
+    if (currentStateName == QStringLiteral("idleCanDataProcessor"))
+    {
+        emit GlobalSignalExecutionRequested();
+    }
 }
 
 void CanDataProcessorBasis::autoSignaller()
@@ -140,7 +158,7 @@ void CanDataProcessorBasis::autoSignaller()
     }
 }
 
-void CanDataProcessorBasis::initialize()
+void CanDataProcessorBasis::initiate()
 {
     dispose();
     autoGlobalSignalToCanBusWorker.Type = QVariant::fromValue(CanBusWorkerBasis::requestFrameTransmission);
@@ -149,7 +167,7 @@ void CanDataProcessorBasis::initialize()
     if (openLocalDatabaseConnection())
     {
         isInitiated = true;
-        emit goToState1();
+        emit goIdle();
     }
     anIf(CanDataProcessorBasisDbgEn && isInitiated, anWarn("CanDataProcessorBasis Initialized"));
 }

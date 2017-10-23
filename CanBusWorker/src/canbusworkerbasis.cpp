@@ -15,7 +15,7 @@ CanBusWorkerBasis::~CanBusWorkerBasis()
     anIf(CanBusWorkerBasisDbgEn, anWarn("CanBusWorkerBasis Destroyed !"));
 }
 
-void CanBusWorkerBasis::initialize()
+void CanBusWorkerBasis::initiate()
 {
     dispose();
     QString * DeviceCreationErrorString = nullptr;
@@ -40,10 +40,10 @@ void CanBusWorkerBasis::initialize()
         QObject::connect(currentDev, &QCanBusDevice::framesReceived, this, [&](){
             GlobalSignal queueFramesRead;
             queueFramesRead.Type = QVariant::fromValue(FrameReceived);
-            addAGlobalSignal(queueFramesRead);
+            pushAGlobalSignalIntoPrioritizedBuffer(queueFramesRead);
             if (currentStateName == QStringLiteral("idleCanBusWorker"))
             {
-                emit goToState2();
+                emit GlobalSignalExecutionRequested();
             }
         });
         QObject::connect(currentDev, &QCanBusDevice::framesWritten, this, &CanBusWorkerBasis::FramesWritten,
@@ -52,7 +52,7 @@ void CanBusWorkerBasis::initialize()
         {
             anIf(CanBusWorkerBasisDbgEn, anAck("Device Is Ready !"));
             isInitiated = true;
-            emit goToState1();
+            emit goIdle();
         }
         else
         {
@@ -174,12 +174,12 @@ void CanBusWorkerBasis::collectFramesReceived()
     {
         GlobalSignal pendingReplyFrameWithTimeStamp;
         pendingReplyFrameWithTimeStamp.Type = QVariant::fromValue(replyFrameWithTimeStamp);
-        pendingReplyFrameWithTimeStamp.DstStrs.append(SmallCoordinatorObjName);
+        pendingReplyFrameWithTimeStamp.DstStrs.append(GlobalSignalCoordinatorObjName);
         while (currentDev->framesAvailable())
         {
             pendingReplyFrameWithTimeStamp.Data = QVariant::fromValue(currentDev->readFrame());
             pendingReplyFrameWithTimeStamp.TimeStamp = NOW2String;
-            addAGlobalSignal(pendingReplyFrameWithTimeStamp);
+            pushAGlobalSignalIntoPrioritizedBuffer(pendingReplyFrameWithTimeStamp);
         }
     }
 }
@@ -196,7 +196,7 @@ void CanBusWorkerBasis::emitErrorGlobalSignal()
     errorGlobalSignal.Data = QVariant::fromValue(ErrorInfo);
     errorGlobalSignal.Priority = 200;
     errorGlobalSignal.SignalPriority = 200;
-    errorGlobalSignal.DstStrs.append(SmallCoordinatorObjName);
+    errorGlobalSignal.DstStrs.append(GlobalSignalCoordinatorObjName);
     emit Out(errorGlobalSignal);
 }
 
@@ -206,17 +206,17 @@ void CanBusWorkerBasis::queueNotificationReadyToWork()
     iamReady.Type = QVariant::fromValue(readyToWork);
     iamReady.Data = QVariant::fromValue(parent()->objectName());
     iamReady.TimeStamp = NOW2String;
-    iamReady.DstStrs.append(SmallCoordinatorObjName);
+    iamReady.DstStrs.append(GlobalSignalCoordinatorObjName);
     iamReady.SignalPriority = 200;
-    addAGlobalSignal(iamReady);
+    pushAGlobalSignalIntoPrioritizedBuffer(iamReady);
 }
 
 void CanBusWorkerBasis::In(const GlobalSignal &aGlobalSignal)
 {
-    addAGlobalSignal(aGlobalSignal);
+    pushAGlobalSignalIntoPrioritizedBuffer(aGlobalSignal);
     if (currentStateName == QStringLiteral("idleCanBusWorker"))
     {
-        emit goToState2();
+        emit GlobalSignalExecutionRequested();
     }
 }
 

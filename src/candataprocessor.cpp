@@ -12,10 +12,10 @@ CanDataProcessor::CanDataProcessor(QObject *parent) : QStateMachine(parent)
     idleCanDataProcessor *state1 = new idleCanDataProcessor(currentBasis,main);
     runningCanDataProcessor *state2 = new runningCanDataProcessor(currentBasis,main);
 
-    state0->addTransition(currentBasis, &CanDataProcessorBasis::goToState1, state1);
-    state1->addTransition(currentBasis, &CanDataProcessorBasis::goToState2, state2);
-    state2->addTransition(currentBasis, &CanDataProcessorBasis::goToState1, state1);
-    state2->addTransition(currentBasis, &CanDataProcessorBasis::goToState2, state2);
+    state0->addTransition(currentBasis, &CanDataProcessorBasis::goIdle, state1);
+    state1->addTransition(currentBasis, &CanDataProcessorBasis::GlobalSignalExecutionRequested, state2);
+    state2->addTransition(currentBasis, &CanDataProcessorBasis::goIdle, state1);
+    state2->addTransition(currentBasis, &CanDataProcessorBasis::GlobalSignalExecutionRequested, state2);
 
     main->setInitialState(state0);
 

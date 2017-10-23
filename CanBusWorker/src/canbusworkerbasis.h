@@ -62,7 +62,7 @@ public:
     //Cache
     QCanBusFrame lastFrameWritten;
 
-    void initialize();
+    void initiate();
     void dispose();
     void setError(const Error & anErrorType, const QString & anErrorInfo);
     void clearError();
